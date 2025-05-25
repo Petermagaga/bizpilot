@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_auth_app/auth_service.dart'; // Make sure the path is correct
+import 'package:flutter_auth_app/screens/create_customer_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -40,6 +41,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text('Email: ${_user!['email']}'),
             Text('First Name: ${_user!['first_name']}'),
             Text('Last Name: ${_user!['last_name']}'),
+
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateCustomerScreen(),
+                  ),
+                );
+              },
+              child: const Text('Create Customer'),
+            ),
           ],
         ),
       ),

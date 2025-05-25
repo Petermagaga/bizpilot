@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_auth_app/screens/customer_list_screen.dart';
 import 'auth_service.dart';
 import 'package:flutter_auth_app/screens/profile_screen.dart';
 
@@ -24,7 +25,7 @@ class _AuthPageState extends State<AuthPage> {
     // Navigate to ProfileScreen
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const ProfileScreen()),
+      MaterialPageRoute(builder: (context) => const CustomerListScreen()),
     );
   } else {
     setState(() {
