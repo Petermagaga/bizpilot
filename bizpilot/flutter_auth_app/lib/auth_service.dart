@@ -3,8 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_auth_app/core/constants.dart';
 
- 
-
 class AuthService {
   Future<bool> register(String username, String password) async {
     final url = Uri.parse('$baseUrl/register/');
@@ -51,5 +49,22 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access');
     await prefs.remove('refresh');
+  }
+
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final access = prefs.getString('access');
+    if (access == null) return null;
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/'),
+      headers: {'Authorization': 'Bearer $access'},
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return null;
+    }
   }
 }
