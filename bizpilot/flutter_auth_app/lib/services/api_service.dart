@@ -97,7 +97,71 @@ class ApiService {
     }
   }
 
+Future<void> deleteCustomer(int id) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access');
 
+  final response = await http.delete(
+    Uri.parse('$baseUrl/customers/$id/'),
+    headers: {
+      'Authorization': 'Bearer $token',
+    },
+  );
+
+  if (response.statusCode != 204) {
+    throw Exception('Failed to delete customer');
+  }
+}
+
+
+Future<void> createTask(int customerId, String title, String desc, DateTime dueDate) async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access');
+
+  final response = await http.post(
+    Uri.parse('$baseUrl/customers/$customerId/tasks/create/'),
+    headers: {
+      'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    },
+    body: jsonEncode({
+      'title': title,
+      'description': desc,
+      'due_date': dueDate.toIso8601String().substring(0, 10), // 'YYYY-MM-DD'
+    }),
+  );
+
+  if (response.statusCode != 201) {
+    throw Exception('Failed to create task');
+  }
+}
+
+  Future<List<Map<String, dynamic>>> getTasksForCustomer(int customerId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/customers/$customerId/tasks/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Tasks API Response (${response.statusCode}): ${response.body}');
+
+      if (response.statusCode == 200) {
+    try {
+      List data = jsonDecode(response.body);
+      return data.map<Map<String, dynamic>>((task) => Map<String, dynamic>.from(task)).toList();
+    } catch (e) {
+      print('Error parsing tasks: $e');
+      throw Exception('Invalid task data');
+    }
+  } else {
+    throw Exception('Failed to load tasks');
+  }
+
+}
 
 
 }

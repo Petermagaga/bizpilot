@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/customer.dart';
 import '../services/api_service.dart';
+import 'create_task_screen.dart';
 
 class CustomerDetailScreen extends StatefulWidget {
   final int customerId;
 
-  const CustomerDetailScreen({Key? key, required this.customerId}) : super(key: key);
+  const CustomerDetailScreen({Key? key, required this.customerId})
+    : super(key: key);
 
   @override
   State<CustomerDetailScreen> createState() => _CustomerDetailScreenState();
@@ -25,10 +27,35 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
 
   final _formKey = GlobalKey<FormState>();
 
+  List<Map<String, dynamic>> _tasks = [];
+  bool _loadingTasks = true;
+
+
+
   @override
   void initState() {
     super.initState();
     _fetchCustomer();
+    _fetchTasks();
+  }
+
+  Future<void> _deleteCustomer() async {
+    setState(() => _loading = true);
+    try {
+      await ApiService().deleteCustomer(_customer!.id);
+      setState(() => _loading = false);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Customer deleted')));
+
+      Navigator.of(context).pop(); // Go back to customer list
+    } catch (e) {
+      setState(() => _loading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   Future<void> _fetchCustomer() async {
@@ -53,6 +80,19 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     }
   }
 
+  void _fetchTasks() async {
+    try {
+      final tasks = await ApiService().getTasksForCustomer(_customer!.id);
+      setState(() {
+        _tasks = tasks;
+        _loadingTasks = false;
+      });
+    } catch (e) {
+      print('Error loading tasks: $e');
+      setState(() => _loadingTasks = false);
+    }
+  }
+
   void _submitUpdate() async {
     if (_formKey.currentState!.validate()) {
       final updatedCustomer = Customer(
@@ -72,10 +112,35 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           _isEditing = false;
         });
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Update failed: $e')));
       }
+    }
+  }
+
+  void _confirmDelete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Delete Customer'),
+            content: Text('Are you sure you want to delete this customer?'),
+            actions: [
+              TextButton(
+                child: Text('Cancel'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              TextButton(
+                child: Text('Delete'),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      _deleteCustomer();
     }
   }
 
@@ -84,7 +149,10 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
       padding: const EdgeInsets.all(16.0),
       child: ListView(
         children: [
-          Text('Name: ${_customer!.name}', style: const TextStyle(fontSize: 20)),
+          Text(
+            'Name: ${_customer!.name}',
+            style: const TextStyle(fontSize: 20),
+          ),
           const SizedBox(height: 8),
           Text('Email: ${_customer!.email}'),
           const SizedBox(height: 8),
@@ -93,6 +161,30 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           Text('Company: ${_customer!.company}'),
           const SizedBox(height: 8),
           Text('Notes: ${_customer!.notes}'),
+          
+      Text('Tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      SizedBox(height: 8),
+      _loadingTasks
+          ? CircularProgressIndicator()
+          : _tasks.isEmpty
+              ? Text('No tasks found.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
+                  itemCount: _tasks.length,
+                  itemBuilder: (context, index) {
+                    final task = _tasks[index];
+                    return Card(
+                      child: ListTile(
+                        title: Text(task['title']?? 'No Title'),
+                        subtitle: Text(task['description'] ?? ''),
+                        trailing: Text(task['due_date']?? 'No date'),
+                      ),
+                    );
+                  },
+                ),
+
+
         ],
       ),
     );
@@ -132,7 +224,14 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
             ElevatedButton(
               onPressed: _submitUpdate,
               child: const Text('Save Changes'),
-            )
+            ),
+
+            ElevatedButton.icon(
+              onPressed: _confirmDelete,
+              icon: Icon(Icons.delete, color: Colors.white),
+              label: Text('Delete Customer'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            ),
           ],
         ),
       ),
@@ -153,18 +252,46 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
                   _isEditing = !_isEditing;
                 });
               },
-            )
+            ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(child: Text('Error: $_error'))
-              : _customer == null
-                  ? const Center(child: Text('Customer not found'))
-                  : _isEditing
-                      ? _buildEditForm()
-                      : _buildStaticView(),
+
+      body: SafeArea(
+        child:
+            _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? Center(child: Text('Error: $_error'))
+                : _customer == null
+                ? const Center(child: Text('Customer not found'))
+                : _isEditing
+                ? _buildEditForm()
+                : _buildStaticView(),
+      ),
+
+      floatingActionButton:
+          _loading || _customer == null
+              ? null // hide FAB while loading or if no customer
+              : FloatingActionButton(
+                onPressed: () async {
+                  final success = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              CreateTaskScreen(customerId: _customer!.id!),
+                    ),
+                  );
+
+                  if (success == true) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('Task created')));
+                  }
+                },
+                backgroundColor: Colors.blue,
+                child: Icon(Icons.add, color: Colors.white),
+              ),
     );
   }
 }
