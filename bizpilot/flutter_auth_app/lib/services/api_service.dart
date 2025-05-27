@@ -163,5 +163,22 @@ Future<void> createTask(int customerId, String title, String desc, DateTime dueD
 
 }
 
+  Future<void> markTaskComplete(int taskId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access');
+
+    final response = await http.patch(
+      Uri.parse('$baseUrl/tasks/$taskId/complete/'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to mark task as complete');
+    }
+  }
+
+
 
 }

@@ -30,13 +30,17 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
   List<Map<String, dynamic>> _tasks = [];
   bool _loadingTasks = true;
 
-
-
   @override
   void initState() {
     super.initState();
-    _fetchCustomer();
-    _fetchTasks();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _fetchCustomer();
+    if (_customer != null) {
+      await _fetchTasks();
+    }
   }
 
   Future<void> _deleteCustomer() async {
@@ -80,7 +84,8 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
     }
   }
 
-  void _fetchTasks() async {
+  Future<void> _fetchTasks() async {
+    if (_customer == null) return;
     try {
       final tasks = await ApiService().getTasksForCustomer(_customer!.id);
       setState(() {
@@ -161,32 +166,48 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
           Text('Company: ${_customer!.company}'),
           const SizedBox(height: 8),
           Text('Notes: ${_customer!.notes}'),
-          
-      Text('Tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      SizedBox(height: 8),
-      _loadingTasks
-          ? CircularProgressIndicator()
-          : _tasks.isEmpty
+
+          Text(
+            'Tasks',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 8),
+          _loadingTasks
+              ? CircularProgressIndicator()
+              : _tasks.isEmpty
               ? Text('No tasks found.')
               : ListView.builder(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  itemCount: _tasks.length,
-                  itemBuilder: (context, index) {
-                    final task = _tasks[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(task['title']?? 'No Title'),
-                        subtitle: Text(task['description'] ?? ''),
-                        trailing: Text(task['due_date']?? 'No date'),
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                itemCount: _tasks.length,
+                itemBuilder: (context, index) {
+                  final task = _tasks[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(task['title'] ?? 'No Title'),
+                      subtitle: Text(task['description'] ?? ''),
+                      trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(task['due_date'] ?? 'No date'),
+                                const SizedBox(height: 4),
+                                if (!task['is_completed']) IconButton(icon: Icon(Icons.check_circle, color: Colors.green,),
+                                onPressed: () => _completeTask(task['id']),
+                                ),
+
+                              ],
                       ),
-                    );
-                  },
-                ),
-
-
+                      
+                    ),
+                  );
+                },
+              ),
         ],
       ),
+    
+    
+    
     );
   }
 
@@ -237,6 +258,18 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen> {
       ),
     );
   }
+
+  void _completeTask(int taskId) async {
+      try {
+        await ApiService().markTaskComplete(taskId);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Task marked as complete")));
+        _fetchTasks(); // Refresh the list
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Failed to complete task")));
+      }
+    }
+
+
 
   @override
   Widget build(BuildContext context) {
